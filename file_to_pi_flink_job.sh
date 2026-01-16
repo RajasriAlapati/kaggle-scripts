@@ -5,16 +5,16 @@ set -e
 # REQUIRED INPUTS
 ########################################
 
-: "${INPUT_FILE:?INPUT_FILE is required}"
-: "${FILE_TYPE:?FILE_TYPE is required (CSV|JSON|JSONL)}"
-: "${UNIVERSE_ID:?UNIVERSE_ID is required}"
-: "${DEST_SCHEMA_ID:?DEST_SCHEMA_ID is required}"
-: "${SCHEMA_VERSION:?SCHEMA_VERSION is required}"
-: "${JOB_NAME:?JOB_NAME is required}"
-: "${JOB_DESC:?JOB_DESC is required}"
-: "${JAR_VERSION:?JAR_VERSION is required}"
-: "${AUTH_TOKEN:?AUTH_TOKEN is required}"
-: "${COLUMN_MAPPINGS:?COLUMN_MAPPINGS is required}"
+: "$INPUT_FILE:?INPUT_FILE is required"
+: "$FILE_TYPE:?FILE_TYPE is required (CSV|JSON|JSONL)"
+: "$UNIVERSE_ID:?UNIVERSE_ID is required"
+: "$DEST_SCHEMA_ID:?DEST_SCHEMA_ID is required"
+: "$SCHEMA_VERSION:?SCHEMA_VERSION is required"
+: "$JOB_NAME:?JOB_NAME is required"
+: "$JOB_DESC:?JOB_DESC is required"
+: "$JAR_VERSION:?JAR_VERSION is required"
+: "$AUTH_TOKEN:?AUTH_TOKEN is required"
+: "$COLUMN_MAPPINGS:?COLUMN_MAPPINGS is required"
 
 ########################################
 # CONSTANTS
