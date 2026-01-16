@@ -6,11 +6,11 @@ set -e  # Fail fast, fail loud
 # INPUTS (FROM USER / BOB WORKFLOW)
 ########################################
 
-KAGGLE_DATASET="${KAGGLE_DATASET}"      # e.g. arshid/iris-flower-dataset
-AUTH_TOKEN="${AUTH_TOKEN}"              # Injected secret
+KAGGLE_DATASET="$KAGGLE_DATASET"      # e.g. arshid/iris-flower-dataset
+AUTH_TOKEN="$AUTH_TOKEN"              # Injected secret
 
-FILE_PATH="${FILE_PATH:-kaggle}"        # Optional
-CONTENT_TAGS="${CONTENT_TAGS:-kaggle,pi-schema}"
+FILE_PATH="$FILE_PATH:-kaggle"        # Optional
+CONTENT_TAGS="$CONTENT_TAGS:-kaggle,pi-schema"
 
 ########################################
 # CONSTANTS
