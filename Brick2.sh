@@ -5,173 +5,142 @@ set -e
 # BRICK 2: fileId -> CREATE FLINK JOB -> jobId
 # =====================================================
 
-# Ensure python3 is available
-if ! command -v python3 &> /dev/null; then
-    echo " python3 could not be found. Please install Python 3."
-    exit 1
+# -----------------------------
+# LOAD PAYLOAD FROM BOB
+# -----------------------------
+if [ -z "$brick2Payload" ]; then
+  echo "❌ brick2Payload is not set"
+  exit 1
 fi
 
+PAYLOAD="$brick2Payload"
+
+# -----------------------------
+# EXTRACT & EXPORT VARIABLES
+# -----------------------------
+export FILE_ID=$(echo "$PAYLOAD" | jq -r '.FILE_ID // empty')
+export FILE_TYPE=$(echo "$PAYLOAD" | jq -r '.FILE_TYPE // "CSV"')
+
+export AUTH_TOKEN=$(echo "$PAYLOAD" | jq -r '.AUTH_TOKEN // empty')
+export UNIVERSE_ID=$(echo "$PAYLOAD" | jq -r '.UNIVERSE_ID // empty')
+export DEST_SCHEMA_ID=$(echo "$PAYLOAD" | jq -r '.DEST_SCHEMA_ID // empty')
+export SCHEMA_VERSION=$(echo "$PAYLOAD" | jq -r '.SCHEMA_VERSION // empty')
+
+export JOB_NAME=$(echo "$PAYLOAD" | jq -r '.JOB_NAME // "kaggle-ingestion"')
+export JOB_DESC=$(echo "$PAYLOAD" | jq -r '.JOB_DESC // "Auto ingestion from Kaggle"')
+export JAR_VERSION=$(echo "$PAYLOAD" | jq -r '.JAR_VERSION // "15.0.4"')
+export COLUMN_MAPPINGS=$(echo "$PAYLOAD" | jq -c '.COLUMN_MAPPINGS // {}')
+
+# -----------------------------
+# VALIDATION (Shell-level)
+# -----------------------------
+missing_vars=()
+
+[ -z "$FILE_ID" ] && missing_vars+=("FILE_ID")
+[ -z "$AUTH_TOKEN" ] && missing_vars+=("AUTH_TOKEN")
+[ -z "$UNIVERSE_ID" ] && missing_vars+=("UNIVERSE_ID")
+[ -z "$DEST_SCHEMA_ID" ] && missing_vars+=("DEST_SCHEMA_ID")
+[ -z "$SCHEMA_VERSION" ] && missing_vars+=("SCHEMA_VERSION")
+
+if [ ${#missing_vars[@]} -ne 0 ]; then
+  echo "❌ Missing required environment variables: ${missing_vars[*]}"
+  exit 1
+fi
+
+echo "✅ Environment variables loaded"
+echo "   FILE_ID=$FILE_ID"
+echo "   FILE_TYPE=$FILE_TYPE"
+echo "   UNIVERSE_ID=$UNIVERSE_ID"
+echo "   DEST_SCHEMA_ID=$DEST_SCHEMA_ID"
+echo "   SCHEMA_VERSION=$SCHEMA_VERSION"
+
+# -----------------------------
+# ENSURE PYTHON
+# -----------------------------
+if ! command -v python3 &> /dev/null; then
+  echo "❌ python3 not found"
+  exit 1
+fi
+
+# =====================================================
+# PYTHON EXECUTION
+# =====================================================
 python3 - << 'EOF'
 import os
 import json
 import requests
 import sys
 
-# =====================================================
-# ENV VARIABLES
-# =====================================================
-
-# Input from Brick 1
 FILE_ID = os.getenv("FILE_ID")
-FILE_TYPE = os.getenv("FILE_TYPE", "CSV")  # CSV, JSON, or JSONL
-
-# Required for Job Creation
+FILE_TYPE = os.getenv("FILE_TYPE", "CSV")
 AUTH_TOKEN = os.getenv("AUTH_TOKEN")
 UNIVERSE_ID = os.getenv("UNIVERSE_ID")
 DEST_SCHEMA_ID = os.getenv("DEST_SCHEMA_ID")
 SCHEMA_VERSION = os.getenv("SCHEMA_VERSION")
-
-# Optional
-JOB_NAME = os.getenv("JOB_NAME", "kaggle-ingestion")
-JOB_DESC = os.getenv("JOB_DESC", "Auto ingestion from Kaggle")
-JAR_VERSION = os.getenv("JAR_VERSION", "15.0.4")
+JOB_NAME = os.getenv("JOB_NAME")
+JOB_DESC = os.getenv("JOB_DESC")
+JAR_VERSION = os.getenv("JAR_VERSION")
 COLUMN_MAPPINGS_STR = os.getenv("COLUMN_MAPPINGS")
 
-# Validate required
-missing_vars = []
-if not FILE_ID:
-    missing_vars.append("FILE_ID")
-if not AUTH_TOKEN:
-    missing_vars.append("AUTH_TOKEN")
-if not UNIVERSE_ID:
-    missing_vars.append("UNIVERSE_ID")
-if not DEST_SCHEMA_ID:
-    missing_vars.append("DEST_SCHEMA_ID")
-if not SCHEMA_VERSION:
-    missing_vars.append("SCHEMA_VERSION")
-
-if missing_vars:
-    print(f" Missing required environment variables: {', '.join(missing_vars)}")
-    sys.exit(1)
-
-# Safe JSON Parse for Column Mappings
 COLUMN_MAPPINGS = {}
-if COLUMN_MAPPINGS_STR and COLUMN_MAPPINGS_STR.strip():
+if COLUMN_MAPPINGS_STR:
     try:
         COLUMN_MAPPINGS = json.loads(COLUMN_MAPPINGS_STR)
-        if not isinstance(COLUMN_MAPPINGS, dict):
-             print(" COLUMN_MAPPINGS must be a JSON object (dict), but got list. Defaulting to empty dict.")
-             COLUMN_MAPPINGS = {}
-    except json.JSONDecodeError:
-        print(" Invalid JSON in COLUMN_MAPPINGS, defaulting to empty dict.")
+    except Exception:
         COLUMN_MAPPINGS = {}
-
-# =====================================================
-# ENDPOINTS
-# =====================================================
 
 PI_JOB_URL = "https://ig.gov-cloud.ai/pi-ingestion-service-dbaas/v4.0/jobs"
 
-HEADERS = {
+headers = {
     "Authorization": f"Bearer {AUTH_TOKEN}",
     "Content-Type": "application/json"
 }
 
-# =====================================================
-# MAIN LOGIC
-# =====================================================
+dest_schema_full = f"{DEST_SCHEMA_ID}_{SCHEMA_VERSION}"
 
-try:
-    print("="*60)
-    print("BRICK 2: CREATE FLINK INGESTION JOB")
-    print("="*60)
-    print(f" Input fileId: {FILE_ID}")
-    print(f" File Type: {FILE_TYPE}")
-    print(f" Universe ID: {UNIVERSE_ID}")
-    
-    # Build full schema name
-    dest_schema_full = f"{DEST_SCHEMA_ID}_{SCHEMA_VERSION}"
-    
-    # =====================================================
-    # CREATE FLINK JOB PAYLOAD
-    # =====================================================
-    
-    job_payload = {
-        "universes": [UNIVERSE_ID],
-        "name": JOB_NAME,
-        "description": JOB_DESC,
-        "tags": {"WHITE": ["KAGGLE"]},
-        "jobType": "ONE_TIME",
-        "fileType": FILE_TYPE,
-        "sinks": ["TIDB"],
-        "jarVersion": JAR_VERSION,
-        "mappingConfig": {
-            "autoMap": True,
-            "destinationSchema": dest_schema_full
-        },
-        "schemaConfig": {
-            DEST_SCHEMA_ID: [{
-                "nodeFileId": FILE_ID,
-                "nodeMappings": COLUMN_MAPPINGS,
-                "nodeFileType": FILE_TYPE
-            }]
-        },
-        "source": {"sourceType": "FILE"}
-    }
-    
-    print(f"\n Creating Flink job for schema: {dest_schema_full}")
-    print(f" Job Payload:")
-    print(json.dumps(job_payload, indent=2))
-    
-    # =====================================================
-    # SUBMIT JOB API REQUEST
-    # =====================================================
-    
-    resp = requests.post(
-        PI_JOB_URL,
-        headers=HEADERS,
-        json=job_payload
-    )
-    
-    resp.raise_for_status()
-    
-    job_response = resp.json()
-    
-    # Extract jobId from response
-    job_id = job_response.get("jobId") or job_response.get("id")
-    
-    if not job_id:
-        print(f" jobId not found in response. Full response:")
-        print(json.dumps(job_response, indent=2))
-        raise RuntimeError("jobId missing from response")
-    
-    print("\n Flink ingestion job created successfully!")
-    
-    # =====================================================
-    # BRICK 2 OUTPUT
-    # =====================================================
-    
-    output = {
-        "job_id": job_id,
-        "status": "CREATED",
-        "job_name": JOB_NAME
-    }
-    
-    print("\n" + "="*60)
-    print("BRICK 2 OUTPUT (JSON):")
-    print(json.dumps(output, indent=2))
-    print("="*60)
+job_payload = {
+    "universes": [UNIVERSE_ID],
+    "name": JOB_NAME,
+    "description": JOB_DESC,
+    "jobType": "ONE_TIME",
+    "fileType": FILE_TYPE,
+    "sinks": ["TIDB"],
+    "jarVersion": JAR_VERSION,
+    "mappingConfig": {
+        "autoMap": True,
+        "destinationSchema": dest_schema_full
+    },
+    "schemaConfig": {
+        DEST_SCHEMA_ID: [{
+            "nodeFileId": FILE_ID,
+            "nodeMappings": COLUMN_MAPPINGS,
+            "nodeFileType": FILE_TYPE
+        }]
+    },
+    "source": {"sourceType": "FILE"},
+    "tags": {"WHITE": ["KAGGLE"]}
+}
 
-except requests.HTTPError as e:
-    print(f"\n HTTP Error: {e}")
-    if e.response is not None:
-        print(f"Response Status: {e.response.status_code}")
-        print(f"Response Body: {e.response.text}")
-    sys.exit(1)
+print("🚀 Creating Flink job...")
+print(json.dumps(job_payload, indent=2))
 
-except Exception as e:
-    print(f"\n Error: {e}")
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)
+resp = requests.post(PI_JOB_URL, headers=headers, json=job_payload)
+resp.raise_for_status()
+
+response = resp.json()
+job_id = response.get("jobId") or response.get("id")
+
+if not job_id:
+    raise RuntimeError("jobId missing in response")
+
+print("\n==============================")
+print("BRICK 2 OUTPUT (JSON)")
+print(json.dumps({
+    "job_id": job_id,
+    "status": "CREATED",
+    "job_name": JOB_NAME
+}, indent=2))
+print("==============================")
 EOF
+
+echo "✅ BRICK 2 COMPLETED SUCCESSFULLY"
