@@ -6,14 +6,14 @@ set -e
 # =====================================================
 
 # -----------------------------
-# LOAD PAYLOAD FROM BOB
+# LOAD PAYLOAD FROM CAMUNDA
 # -----------------------------
-if [ -z "$brick2Payload" ]; then
-  echo "❌ brick2Payload is not set"
+if [ -z "$jobsPayload" ]; then
+  echo "❌ jobsPayload is not set"
   exit 1
 fi
 
-PAYLOAD="$brick2Payload"
+PAYLOAD="$jobsPayload"
 
 # -----------------------------
 # EXTRACT & EXPORT VARIABLES
@@ -32,7 +32,7 @@ export JAR_VERSION=$(echo "$PAYLOAD" | jq -r '.JAR_VERSION // "15.0.4"')
 export COLUMN_MAPPINGS=$(echo "$PAYLOAD" | jq -c '.COLUMN_MAPPINGS // {}')
 
 # -----------------------------
-# VALIDATION (Shell-level)
+# VALIDATION
 # -----------------------------
 missing_vars=()
 
@@ -43,33 +43,22 @@ missing_vars=()
 [ -z "$SCHEMA_VERSION" ] && missing_vars+=("SCHEMA_VERSION")
 
 if [ ${#missing_vars[@]} -ne 0 ]; then
-  echo "❌ Missing required environment variables: ${missing_vars[*]}"
+  echo "❌ Missing required variables: ${missing_vars[*]}"
   exit 1
 fi
 
-echo "✅ Environment variables loaded"
-echo "   FILE_ID=$FILE_ID"
-echo "   FILE_TYPE=$FILE_TYPE"
-echo "   UNIVERSE_ID=$UNIVERSE_ID"
-echo "   DEST_SCHEMA_ID=$DEST_SCHEMA_ID"
-echo "   SCHEMA_VERSION=$SCHEMA_VERSION"
+echo "✅ Environment variables loaded successfully"
 
 # -----------------------------
 # ENSURE PYTHON
 # -----------------------------
-if ! command -v python3 &> /dev/null; then
-  echo "❌ python3 not found"
-  exit 1
-fi
+command -v python3 >/dev/null || { echo "❌ python3 not found"; exit 1; }
 
 # =====================================================
 # PYTHON EXECUTION
 # =====================================================
 python3 - << 'EOF'
-import os
-import json
-import requests
-import sys
+import os, json, requests
 
 FILE_ID = os.getenv("FILE_ID")
 FILE_TYPE = os.getenv("FILE_TYPE", "CSV")
@@ -80,14 +69,7 @@ SCHEMA_VERSION = os.getenv("SCHEMA_VERSION")
 JOB_NAME = os.getenv("JOB_NAME")
 JOB_DESC = os.getenv("JOB_DESC")
 JAR_VERSION = os.getenv("JAR_VERSION")
-COLUMN_MAPPINGS_STR = os.getenv("COLUMN_MAPPINGS")
-
-COLUMN_MAPPINGS = {}
-if COLUMN_MAPPINGS_STR:
-    try:
-        COLUMN_MAPPINGS = json.loads(COLUMN_MAPPINGS_STR)
-    except Exception:
-        COLUMN_MAPPINGS = {}
+COLUMN_MAPPINGS = json.loads(os.getenv("COLUMN_MAPPINGS", "{}"))
 
 PI_JOB_URL = "https://ig.gov-cloud.ai/pi-ingestion-service-dbaas/v4.0/jobs"
 
@@ -127,9 +109,7 @@ print(json.dumps(job_payload, indent=2))
 resp = requests.post(PI_JOB_URL, headers=headers, json=job_payload)
 resp.raise_for_status()
 
-response = resp.json()
-job_id = response.get("jobId") or response.get("id")
-
+job_id = resp.json().get("jobId") or resp.json().get("id")
 if not job_id:
     raise RuntimeError("jobId missing in response")
 
