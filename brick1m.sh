@@ -7,6 +7,8 @@ set -e
 
 export AUTH_TOKEN="$AUTH_TOKEN"
 export KAGGLE_DATASET="$KAGGLE_DATASET"
+export KAGGLE_USERNAME="$KAGGLE_USERNAME"
+export KAGGLE_KEY="$KAGGLE_KEY"
 
 ########################################
 # CONSTANTS
@@ -36,6 +38,30 @@ if ! command -v kaggle &> /dev/null; then
 fi
 
 echo "✅ kaggle CLI is available"
+
+########################################
+# CONFIGURE KAGGLE AUTH
+########################################
+
+if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then
+  echo "❌ KAGGLE_USERNAME or KAGGLE_KEY is missing"
+  exit 1
+fi
+
+mkdir -p /home/cloud-user/.config/kaggle
+
+cat > /home/cloud-user/.config/kaggle/kaggle.json <<EOF
+{
+  "username": "${KAGGLE_USERNAME}",
+  "key": "${KAGGLE_KEY}"
+}
+EOF
+
+chmod 600 /home/cloud-user/.config/kaggle/kaggle.json
+
+echo "✅ kaggle.json configured"
+
+
 
 if [ -z "$AUTH_TOKEN" ]; then
   echo " AUTH_TOKEN is missing"
