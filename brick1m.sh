@@ -1,56 +1,50 @@
 #!/bin/bash
 set -e
 
-# =====================================================
-# BRICK 1: KAGGLE DOWNLOAD -> EXTRACT -> PI UPLOAD -> FILE ID
-# =====================================================
+########################################
+# INPUTS (Injected by Bob Workflow)
+########################################
 
-echo "🔹 BRICK 1 STARTED"
+AUTH_TOKEN="$AUTH_TOKEN"
+KAGGLE_DATASET="$KAGGLE_DATASET"
 
-# =====================================================
-# STEP 0: EXTRACT VARIABLES FROM SPIN PAYLOAD
-# =====================================================
+########################################
+# CONSTANTS
+########################################
 
-if [ -z "$brick1Payload" ]; then
-  echo "❌ brick1Payload is not set"
+PI_UPLOAD_URL="https://ig.gov-cloud.ai/pi-ingestion-service-dbaas/v2.0/jobs/upload"
+
+########################################
+# VALIDATIONS
+########################################
+
+if [ -z "$AUTH_TOKEN" ]; then
+  echo "❌ AUTH_TOKEN is missing"
   exit 1
 fi
 
-if ! command -v jq &> /dev/null; then
-  echo "❌ jq is required but not installed"
+if [ -z "$KAGGLE_DATASET" ]; then
+  echo "❌ KAGGLE_DATASET is missing"
   exit 1
 fi
 
-export AUTH_TOKEN=$(echo "$brick1Payload" | jq -r '.AUTH_TOKEN')
-export KAGGLE_DATASET=$(echo "$brick1Payload" | jq -r '.KAGGLE_DATASET')
-
-# Fail fast
-if [ -z "$AUTH_TOKEN" ] || [ "$AUTH_TOKEN" = "null" ]; then
-  echo "❌ AUTH_TOKEN missing in brick1Payload"
+if ! command -v python3 &> /dev/null; then
+  echo "❌ python3 not found"
   exit 1
 fi
 
-if [ -z "$KAGGLE_DATASET" ] || [ "$KAGGLE_DATASET" = "null" ]; then
-  echo "❌ KAGGLE_DATASET missing in brick1Payload"
+if ! command -v kaggle &> /dev/null; then
+  echo "❌ kaggle CLI not found"
   exit 1
 fi
 
-echo "✅ Environment variables initialized"
+echo "✅ Inputs validated"
 echo "   KAGGLE_DATASET=$KAGGLE_DATASET"
 echo "   AUTH_TOKEN=***masked***"
 
-# =====================================================
-# STEP 1: ENSURE PYTHON
-# =====================================================
-
-if ! command -v python3 &> /dev/null; then
-    echo "❌ python3 could not be found. Please install Python 3."
-    exit 1
-fi
-
-# =====================================================
-# STEP 2: RUN PYTHON LOGIC
-# =====================================================
+########################################
+# EXECUTION (PYTHON)
+########################################
 
 python3 - << 'EOF'
 import os
@@ -58,86 +52,65 @@ import json
 import zipfile
 import mimetypes
 import requests
-import sys
-import shutil
 import tempfile
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
-# =====================================================
-# ENV VARIABLES
-# =====================================================
-
-KAGGLE_DATASET = os.getenv("KAGGLE_DATASET")
 AUTH_TOKEN = os.getenv("AUTH_TOKEN")
-
+KAGGLE_DATASET = os.getenv("KAGGLE_DATASET")
 PI_UPLOAD_URL = "https://ig.gov-cloud.ai/pi-ingestion-service-dbaas/v2.0/jobs/upload"
-
-missing = []
-if not AUTH_TOKEN:
-    missing.append("AUTH_TOKEN")
-if not KAGGLE_DATASET:
-    missing.append("KAGGLE_DATASET")
-
-if missing:
-    print(f"❌ Missing required environment variables: {', '.join(missing)}")
-    sys.exit(1)
 
 HEADERS = {
     "Authorization": f"Bearer {AUTH_TOKEN}"
 }
 
-# =====================================================
-# WORKING DIRECTORY
-# =====================================================
-
-WORK_DIR = Path(tempfile.mkdtemp(prefix="kaggle_brick1_"))
-print(f"📁 Working directory: {WORK_DIR}")
+work_dir = Path(tempfile.mkdtemp(prefix="kaggle_brick1_"))
+print(f"📁 Working directory: {work_dir}")
 
 def cleanup():
-    if WORK_DIR.exists():
-        shutil.rmtree(WORK_DIR, ignore_errors=True)
-        print("🧹 Cleanup complete")
+    shutil.rmtree(work_dir, ignore_errors=True)
+    print("🧹 Cleanup complete")
 
 try:
-    # =====================================================
-    # STEP 1: VALIDATE DATASET ACCESS
-    # =====================================================
-
+    # ---------------------------------
+    # STEP 1: Validate dataset
+    # ---------------------------------
     print(f"🔍 Validating Kaggle dataset: {KAGGLE_DATASET}")
-    meta_cmd = ["kaggle", "datasets", "metadata", KAGGLE_DATASET, "-p", str(WORK_DIR)]
-    meta_result = subprocess.run(meta_cmd, capture_output=True, text=True)
-
-    if meta_result.returncode != 0:
-        print(meta_result.stderr)
-        raise RuntimeError("Dataset not found or access denied")
+    result = subprocess.run(
+        ["kaggle", "datasets", "metadata", KAGGLE_DATASET, "-p", str(work_dir)],
+        capture_output=True,
+        text=True
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr)
 
     print("✅ Dataset access confirmed")
 
-    # =====================================================
-    # STEP 2: DOWNLOAD DATASET
-    # =====================================================
-
-    print("⬇️ Downloading dataset...")
-    download_cmd = ["kaggle", "datasets", "download", KAGGLE_DATASET, "-p", str(WORK_DIR)]
-    result = subprocess.run(download_cmd, capture_output=True, text=True)
-
+    # ---------------------------------
+    # STEP 2: Download dataset
+    # ---------------------------------
+    print("⬇️ Downloading dataset")
+    result = subprocess.run(
+        ["kaggle", "datasets", "download", KAGGLE_DATASET, "-p", str(work_dir)],
+        capture_output=True,
+        text=True
+    )
     if result.returncode != 0:
-        print(result.stderr)
-        raise RuntimeError("Kaggle download failed")
+        raise RuntimeError(result.stderr)
 
-    zip_files = list(WORK_DIR.glob("*.zip"))
+    zip_files = list(work_dir.glob("*.zip"))
     if not zip_files:
-        raise RuntimeError("No ZIP file found after download")
+        raise RuntimeError("No zip file downloaded")
 
     zip_file = zip_files[0]
     print(f"📦 Downloaded: {zip_file.name}")
 
-    # =====================================================
-    # STEP 3: EXTRACT & SELECT FILE
-    # =====================================================
-
-    extract_dir = WORK_DIR / "extracted"
+    # ---------------------------------
+    # STEP 3: Extract & choose file
+    # ---------------------------------
+    extract_dir = work_dir / "extracted"
     extract_dir.mkdir()
 
     with zipfile.ZipFile(zip_file, "r") as z:
@@ -145,18 +118,17 @@ try:
 
     all_files = [f for f in extract_dir.rglob("*") if f.is_file()]
     if not all_files:
-        raise RuntimeError("No files found after extraction")
+        raise RuntimeError("No files after extraction")
 
     structured_exts = {".csv", ".json", ".jsonl"}
     structured = [f for f in all_files if f.suffix.lower() in structured_exts]
 
     target = max(structured or all_files, key=lambda f: f.stat().st_size)
-    print(f"🎯 Selected file: {target.name} ({target.stat().st_size} bytes)")
+    print(f"🎯 Selected file: {target.name}")
 
-    # =====================================================
-    # STEP 4: UPLOAD TO PI INGESTION
-    # =====================================================
-
+    # ---------------------------------
+    # STEP 4: Upload to PI ingestion
+    # ---------------------------------
     file_type_map = {
         ".csv": "CSV",
         ".json": "JSON",
@@ -183,16 +155,13 @@ try:
     if not file_id:
         raise RuntimeError(f"fileId missing in response: {resp_json}")
 
-    print(f"✅ fileId received: {file_id}")
-
-    # =====================================================
-    # OUTPUT
-    # =====================================================
-
+    # ---------------------------------
+    # OUTPUT (Bob reads logs)
+    # ---------------------------------
     output = {
         "file_id": file_id,
         "file_type": file_type,
-        "original_filename": target.name
+        "filename": target.name
     }
 
     print("\n" + "=" * 60)
@@ -202,7 +171,6 @@ try:
 
 except Exception as e:
     print(f"❌ Error: {e}")
-    cleanup()
     sys.exit(1)
 
 finally:
