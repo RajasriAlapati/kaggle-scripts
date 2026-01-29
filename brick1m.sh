@@ -218,7 +218,10 @@ try:
 
     print("\n" + "=" * 60)
     print("BRICK 1 OUTPUT (JSON)")
-    print(json.dumps(output, indent=2))
+    print(json.dumps({
+    "FILE_ID": file_id,
+    "FILE_TYPE": file_type
+      }))
     print("=" * 60)
 
 except Exception as e:
