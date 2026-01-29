@@ -197,8 +197,15 @@ try:
     resp_json = resp.json()
 
     file_id = resp_json.get("fileId")
+
+    if not file_id:
+        files = resp_json.get("filesDetails", [])
+        if files and isinstance(files, list):
+            file_id = files[0].get("fileId")
+    
     if not file_id:
         raise RuntimeError(f"fileId missing in response: {resp_json}")
+
 
     # ---------------------------------
     # OUTPUT (Bob reads logs)
