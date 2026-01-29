@@ -1,65 +1,81 @@
 #!/bin/bash
 set -e
 
-# =====================================================
-# BRICK 2: fileId -> CREATE FLINK JOB -> jobId
-# =====================================================
-export jobsPayload='${jobsPayload}'
+echo "================ BRICK 2 START ================"
 
-# -----------------------------
-# LOAD PAYLOAD FROM CAMUNDA
-# -----------------------------
-if [ -z "$jobsPayload" ]; then
-  echo "❌ jobsPayload is not set"
+# -------------------------------------------------
+# 1. VERIFY INPUT FROM SPINJS
+# -------------------------------------------------
+if [ -z "$brick2Payload" ]; then
+  echo "❌ brick2Payload is not set"
   exit 1
 fi
 
-PAYLOAD="$jobsPayload"
+echo "✅ brick2Payload received"
 
-# -----------------------------
-# EXTRACT & EXPORT VARIABLES
-# -----------------------------
-export FILE_ID=$(echo "$PAYLOAD" | jq -r '.FILE_ID // empty')
-export FILE_TYPE=$(echo "$PAYLOAD" | jq -r '.FILE_TYPE // "CSV"')
+# -------------------------------------------------
+# 2. CLEAN SPIN JSON (REMOVE WRAPPING QUOTES)
+# -------------------------------------------------
+CLEAN_PAYLOAD=$(printf '%s' "$brick2Payload" | sed 's/^"//;s/"$//')
 
-export AUTH_TOKEN=$(echo "$PAYLOAD" | jq -r '.AUTH_TOKEN // empty')
-export UNIVERSE_ID=$(echo "$PAYLOAD" | jq -r '.UNIVERSE_ID // empty')
-export DEST_SCHEMA_ID=$(echo "$PAYLOAD" | jq -r '.DEST_SCHEMA_ID // empty')
-export SCHEMA_VERSION=$(echo "$PAYLOAD" | jq -r '.SCHEMA_VERSION // empty')
+echo "🔍 Clean payload:"
+echo "$CLEAN_PAYLOAD"
 
-export JOB_NAME=$(echo "$PAYLOAD" | jq -r '.JOB_NAME // "kaggle-ingestion"')
-export JOB_DESC=$(echo "$PAYLOAD" | jq -r '.JOB_DESC // "Auto ingestion from Kaggle"')
-export JAR_VERSION=$(echo "$PAYLOAD" | jq -r '.JAR_VERSION // "15.0.4"')
-export COLUMN_MAPPINGS=$(echo "$PAYLOAD" | jq -c '.COLUMN_MAPPINGS // {}')
+# -------------------------------------------------
+# 3. EXTRACT VARIABLES USING jq
+# -------------------------------------------------
+export FILE_ID=$(echo "$CLEAN_PAYLOAD" | jq -r '.FILE_ID // empty')
+export FILE_TYPE=$(echo "$CLEAN_PAYLOAD" | jq -r '.FILE_TYPE // "CSV"')
 
-# -----------------------------
-# VALIDATION
-# -----------------------------
-missing_vars=()
+export AUTH_TOKEN=$(echo "$CLEAN_PAYLOAD" | jq -r '.AUTH_TOKEN // empty')
+export UNIVERSE_ID=$(echo "$CLEAN_PAYLOAD" | jq -r '.UNIVERSE_ID // empty')
+export DEST_SCHEMA_ID=$(echo "$CLEAN_PAYLOAD" | jq -r '.DEST_SCHEMA_ID // empty')
+export SCHEMA_VERSION=$(echo "$CLEAN_PAYLOAD" | jq -r '.SCHEMA_VERSION // empty')
 
-[ -z "$FILE_ID" ] && missing_vars+=("FILE_ID")
-[ -z "$AUTH_TOKEN" ] && missing_vars+=("AUTH_TOKEN")
-[ -z "$UNIVERSE_ID" ] && missing_vars+=("UNIVERSE_ID")
-[ -z "$DEST_SCHEMA_ID" ] && missing_vars+=("DEST_SCHEMA_ID")
-[ -z "$SCHEMA_VERSION" ] && missing_vars+=("SCHEMA_VERSION")
+export JOB_NAME=$(echo "$CLEAN_PAYLOAD" | jq -r '.JOB_NAME // "kaggle-ingestion"')
+export JOB_DESC=$(echo "$CLEAN_PAYLOAD" | jq -r '.JOB_DESC // "Auto ingestion from Kaggle"')
+export JAR_VERSION=$(echo "$CLEAN_PAYLOAD" | jq -r '.JAR_VERSION // "15.0.4"')
+export COLUMN_MAPPINGS=$(echo "$CLEAN_PAYLOAD" | jq -c '.COLUMN_MAPPINGS // {}')
 
-if [ ${#missing_vars[@]} -ne 0 ]; then
-  echo "❌ Missing required variables: ${missing_vars[*]}"
+# -------------------------------------------------
+# 4. VALIDATION
+# -------------------------------------------------
+missing=()
+
+[ -z "$FILE_ID" ] && missing+=("FILE_ID")
+[ -z "$AUTH_TOKEN" ] && missing+=("AUTH_TOKEN")
+[ -z "$UNIVERSE_ID" ] && missing+=("UNIVERSE_ID")
+[ -z "$DEST_SCHEMA_ID" ] && missing+=("DEST_SCHEMA_ID")
+[ -z "$SCHEMA_VERSION" ] && missing+=("SCHEMA_VERSION")
+
+if [ ${#missing[@]} -ne 0 ]; then
+  echo "❌ Missing required variables: ${missing[*]}"
   exit 1
 fi
 
-echo "✅ Environment variables loaded successfully"
+echo "✅ Environment validated"
+echo "   FILE_ID=$FILE_ID"
+echo "   FILE_TYPE=$FILE_TYPE"
+echo "   UNIVERSE_ID=$UNIVERSE_ID"
+echo "   DEST_SCHEMA_ID=$DEST_SCHEMA_ID"
+echo "   SCHEMA_VERSION=$SCHEMA_VERSION"
 
-# -----------------------------
-# ENSURE PYTHON
-# -----------------------------
-command -v python3 >/dev/null || { echo "❌ python3 not found"; exit 1; }
+# -------------------------------------------------
+# 5. ENSURE PYTHON
+# -------------------------------------------------
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "❌ python3 not found"
+  exit 1
+fi
 
-# =====================================================
-# PYTHON EXECUTION
-# =====================================================
-python3 - << 'EOF'
-import os, json, requests
+# -------------------------------------------------
+# 6. PYTHON – CREATE FLINK JOB
+# -------------------------------------------------
+python3 << 'EOF'
+import os
+import json
+import requests
+import sys
 
 FILE_ID = os.getenv("FILE_ID")
 FILE_TYPE = os.getenv("FILE_TYPE", "CSV")
@@ -70,7 +86,15 @@ SCHEMA_VERSION = os.getenv("SCHEMA_VERSION")
 JOB_NAME = os.getenv("JOB_NAME")
 JOB_DESC = os.getenv("JOB_DESC")
 JAR_VERSION = os.getenv("JAR_VERSION")
-COLUMN_MAPPINGS = json.loads(os.getenv("COLUMN_MAPPINGS", "{}"))
+COLUMN_MAPPINGS_RAW = os.getenv("COLUMN_MAPPINGS", "{}")
+
+# Safe JSON parse
+try:
+    COLUMN_MAPPINGS = json.loads(COLUMN_MAPPINGS_RAW)
+    if not isinstance(COLUMN_MAPPINGS, dict):
+        COLUMN_MAPPINGS = {}
+except Exception:
+    COLUMN_MAPPINGS = {}
 
 PI_JOB_URL = "https://ig.gov-cloud.ai/pi-ingestion-service-dbaas/v4.0/jobs"
 
@@ -110,9 +134,13 @@ print(json.dumps(job_payload, indent=2))
 resp = requests.post(PI_JOB_URL, headers=headers, json=job_payload)
 resp.raise_for_status()
 
-job_id = resp.json().get("jobId") or resp.json().get("id")
+response = resp.json()
+job_id = response.get("jobId") or response.get("id")
+
 if not job_id:
-    raise RuntimeError("jobId missing in response")
+    print("❌ jobId missing in response:")
+    print(json.dumps(response, indent=2))
+    sys.exit(1)
 
 print("\n==============================")
 print("BRICK 2 OUTPUT (JSON)")
@@ -125,3 +153,4 @@ print("==============================")
 EOF
 
 echo "✅ BRICK 2 COMPLETED SUCCESSFULLY"
+echo "================ BRICK 2 END ================="
