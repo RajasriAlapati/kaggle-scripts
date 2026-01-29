@@ -4,6 +4,7 @@ set -e
 # =====================================================
 # BRICK 2: fileId -> CREATE FLINK JOB -> jobId
 # =====================================================
+export jobsPayload='${jobsPayload}'
 
 # -----------------------------
 # LOAD PAYLOAD FROM CAMUNDA
