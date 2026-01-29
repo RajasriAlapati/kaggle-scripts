@@ -5,8 +5,8 @@ set -e
 # INPUTS (Injected by Bob Workflow)
 ########################################
 
-AUTH_TOKEN="$AUTH_TOKEN"
-KAGGLE_DATASET="$KAGGLE_DATASET"
+export AUTH_TOKEN="$AUTH_TOKEN"
+export KAGGLE_DATASET="$KAGGLE_DATASET"
 
 ########################################
 # CONSTANTS
