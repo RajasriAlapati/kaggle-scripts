@@ -18,6 +18,8 @@ PI_UPLOAD_URL="https://ig.gov-cloud.ai/pi-ingestion-service-dbaas/v2.0/jobs/uplo
 # VALIDATIONS
 ########################################
 
+python3 -m pip install --user kaggle
+
 if [ -z "$AUTH_TOKEN" ]; then
   echo "❌ AUTH_TOKEN is missing"
   exit 1
