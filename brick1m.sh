@@ -7,8 +7,8 @@ set -e
 
 export AUTH_TOKEN="$AUTH_TOKEN"
 export KAGGLE_DATASET="$KAGGLE_DATASET"
-export KAGGLE_USERNAME="$KAGGLE_USERNAME"
-export KAGGLE_KEY="$KAGGLE_KEY"
+export KAGGLE_USERNAME="rajasrialapati"
+export KAGGLE_KEY="1cd09c0e9ac589445d20d286c82f8083"
 
 ########################################
 # CONSTANTS
