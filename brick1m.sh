@@ -18,15 +18,32 @@ PI_UPLOAD_URL="https://ig.gov-cloud.ai/pi-ingestion-service-dbaas/v2.0/jobs/uplo
 # VALIDATIONS
 ########################################
 
-python3 -m pip install --user kaggle
-echo "successfully installed kaggle CLI"
+echo "🔧 Installing kaggle CLI at runtime..."
+
+python3 -m pip install --user --quiet kaggle
+
+# IMPORTANT: Bob runs as cloud-user
+export PATH="/home/cloud-user/.local/bin:$PATH"
+
+# Debug (remove later)
+echo "🔍 kaggle location check"
+ls -l /home/cloud-user/.local/bin || true
+echo "🔍 PATH=$PATH"
+
+if ! command -v kaggle &> /dev/null; then
+  echo "❌ kaggle CLI not found even after PATH fix"
+  exit 1
+fi
+
+echo "✅ kaggle CLI is available"
+
 if [ -z "$AUTH_TOKEN" ]; then
-  echo "❌ AUTH_TOKEN is missing"
+  echo " AUTH_TOKEN is missing"
   exit 1
 fi
 
 if [ -z "$KAGGLE_DATASET" ]; then
-  echo "❌ KAGGLE_DATASET is missing"
+  echo " KAGGLE_DATASET is missing"
   exit 1
 fi
 
