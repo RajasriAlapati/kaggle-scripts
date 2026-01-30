@@ -2,18 +2,18 @@
 set -e
 echo "$BRICK2_PAYLOAD"
 echo "--------------------------------"
-BRICK2_PAYLOAD="${BRICK2_PAYLOAD}"
+export b2payload="$BRICK2_PAYLOAD"
 echo "1111111111111111111111111111111111111111"
-echo "$BRICK2_PAYLOAD"
+echo "$b2payload"
 
 echo "================ BRICK 2 START ================"
 
-if [ -z "$BRICK2_PAYLOAD" ]; then
+if [ -z "$b2payload" ]; then
     if [ -n "$brick2Payload" ]; then
-        echo "⚠️ BRICK2_PAYLOAD not set, using brick2Payload"
-        BRICK2_PAYLOAD="$brick2Payload"
+        echo "⚠️ b2payload not set, using brick2Payload"
+        b2payload="$brick2Payload"
     else
-        echo "❌ BRICK2_PAYLOAD (and brick2Payload) is not set"
+        echo "❌ b2payload (and brick2Payload) is not set"
         # Debug: list env vars to help user troubleshoot
         echo "Available Env Vars:"
         env | grep -i payload || true
@@ -21,15 +21,15 @@ if [ -z "$BRICK2_PAYLOAD" ]; then
     fi
 fi
 
-echo "✅ BRICK2_PAYLOAD received"
-echo "$BRICK2_PAYLOAD"
+echo "✅ b2payload received"
+echo "$b2payload"
 
-FILE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_ID')
-FILE_TYPE=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_TYPE')
-AUTH_TOKEN=$(echo "$BRICK2_PAYLOAD" | jq -r '.AUTH_TOKEN')
-UNIVERSE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.UNIVERSE_ID')
-DEST_SCHEMA_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.DEST_SCHEMA_ID')
-SCHEMA_VERSION=$(echo "$BRICK2_PAYLOAD" | jq -r '.SCHEMA_VERSION')
+FILE_ID=$(echo "$b2payload" | jq -r '.FILE_ID')
+FILE_TYPE=$(echo "$b2payload" | jq -r '.FILE_TYPE')
+AUTH_TOKEN=$(echo "$b2payload" | jq -r '.AUTH_TOKEN')
+UNIVERSE_ID=$(echo "$b2payload" | jq -r '.UNIVERSE_ID')
+DEST_SCHEMA_ID=$(echo "$b2payload" | jq -r '.DEST_SCHEMA_ID')
+SCHEMA_VERSION=$(echo "$b2payload" | jq -r '.SCHEMA_VERSION')
 
 # -------------------------------------------------
 # 4. VALIDATION
