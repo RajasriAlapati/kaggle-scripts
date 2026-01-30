@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-export BRICK2_PAYLOAD="$BRICK2_PAYLOAD"
+BRICK2_PAYLOAD="$BRICK2_PAYLOAD"
 echo "================ BRICK 2 START ================"
 
 if [ -z "$BRICK2_PAYLOAD" ]; then
@@ -19,12 +19,12 @@ fi
 echo "✅ BRICK2_PAYLOAD received"
 echo "$BRICK2_PAYLOAD"
 
-export FILE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_ID')
-export FILE_TYPE=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_TYPE')
-export AUTH_TOKEN=$(echo "$BRICK2_PAYLOAD" | jq -r '.AUTH_TOKEN')
-export UNIVERSE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.UNIVERSE_ID')
-export DEST_SCHEMA_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.DEST_SCHEMA_ID')
-export SCHEMA_VERSION=$(echo "$BRICK2_PAYLOAD" | jq -r '.SCHEMA_VERSION')
+FILE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_ID')
+FILE_TYPE=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_TYPE')
+AUTH_TOKEN=$(echo "$BRICK2_PAYLOAD" | jq -r '.AUTH_TOKEN')
+UNIVERSE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.UNIVERSE_ID')
+DEST_SCHEMA_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.DEST_SCHEMA_ID')
+SCHEMA_VERSION=$(echo "$BRICK2_PAYLOAD" | jq -r '.SCHEMA_VERSION')
 
 # -------------------------------------------------
 # 4. VALIDATION
