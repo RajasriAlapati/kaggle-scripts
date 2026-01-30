@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
+echo "$BRICK2_PAYLOAD"
+echo "--------------------------------"
 BRICK2_PAYLOAD="${BRICK2_PAYLOAD}"
+echo "1111111111111111111111111111111111111111"
+echo "$BRICK2_PAYLOAD"
+
 echo "================ BRICK 2 START ================"
 
 if [ -z "$BRICK2_PAYLOAD" ]; then
