@@ -3,39 +3,20 @@ set -e
 
 echo "================ BRICK 2 START ================"
 
-# -------------------------------------------------
-# 1. VERIFY INPUT FROM SPINJS
-# -------------------------------------------------
-if [ -z "$brick2payload" ]; then
-  echo "❌ brick2payload is not set"
+if [ -z "$BRICK2_PAYLOAD" ]; then
+  echo "❌ BRICK2_PAYLOAD is not set"
   exit 1
 fi
 
-echo "✅ brick2payload received"
+echo "✅ BRICK2_PAYLOAD received"
+echo "$BRICK2_PAYLOAD"
 
-# -------------------------------------------------
-# 2. CLEAN SPIN JSON (REMOVE WRAPPING QUOTES)
-# -------------------------------------------------
-CLEAN_PAYLOAD=$(printf '%s' "$brick2payload" | sed 's/^"//;s/"$//')
-
-echo "🔍 Clean payload:"
-echo "$CLEAN_PAYLOAD"
-
-# -------------------------------------------------
-# 3. EXTRACT VARIABLES USING jq
-# -------------------------------------------------
-export FILE_ID=$(echo "$CLEAN_PAYLOAD" | jq -r '.FILE_ID // empty')
-export FILE_TYPE=$(echo "$CLEAN_PAYLOAD" | jq -r '.FILE_TYPE // "CSV"')
-
-export AUTH_TOKEN=$(echo "$CLEAN_PAYLOAD" | jq -r '.AUTH_TOKEN // empty')
-export UNIVERSE_ID=$(echo "$CLEAN_PAYLOAD" | jq -r '.UNIVERSE_ID // empty')
-export DEST_SCHEMA_ID=$(echo "$CLEAN_PAYLOAD" | jq -r '.DEST_SCHEMA_ID // empty')
-export SCHEMA_VERSION=$(echo "$CLEAN_PAYLOAD" | jq -r '.SCHEMA_VERSION // empty')
-
-export JOB_NAME=$(echo "$CLEAN_PAYLOAD" | jq -r '.JOB_NAME // "kaggle-ingestion"')
-export JOB_DESC=$(echo "$CLEAN_PAYLOAD" | jq -r '.JOB_DESC // "Auto ingestion from Kaggle"')
-export JAR_VERSION=$(echo "$CLEAN_PAYLOAD" | jq -r '.JAR_VERSION // "15.0.4"')
-export COLUMN_MAPPINGS=$(echo "$CLEAN_PAYLOAD" | jq -c '.COLUMN_MAPPINGS // {}')
+export FILE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_ID')
+export FILE_TYPE=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_TYPE')
+export AUTH_TOKEN=$(echo "$BRICK2_PAYLOAD" | jq -r '.AUTH_TOKEN')
+export UNIVERSE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.UNIVERSE_ID')
+export DEST_SCHEMA_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.DEST_SCHEMA_ID')
+export SCHEMA_VERSION=$(echo "$BRICK2_PAYLOAD" | jq -r '.SCHEMA_VERSION')
 
 # -------------------------------------------------
 # 4. VALIDATION
