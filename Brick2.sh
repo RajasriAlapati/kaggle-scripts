@@ -145,6 +145,6 @@ print(json.dumps({
 }, indent=2))
 print("==============================")
 EOF
-
+echo "job_id"
 echo "✅ BRICK 2 COMPLETED SUCCESSFULLY"
 echo "================ BRICK 2 END ================="
