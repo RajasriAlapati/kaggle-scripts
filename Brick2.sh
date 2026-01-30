@@ -6,17 +6,17 @@ echo "================ BRICK 2 START ================"
 # -------------------------------------------------
 # 1. VERIFY INPUT FROM SPINJS
 # -------------------------------------------------
-if [ -z "$jobsPayload" ]; then
-  echo "❌ jobsPayload is not set"
+if [ -z "$brick2payload" ]; then
+  echo "❌ brick2payload is not set"
   exit 1
 fi
 
-echo "✅ jobsPayload received"
+echo "✅ brick2payload received"
 
 # -------------------------------------------------
 # 2. CLEAN SPIN JSON (REMOVE WRAPPING QUOTES)
 # -------------------------------------------------
-CLEAN_PAYLOAD=$(printf '%s' "$jobsPayload" | sed 's/^"//;s/"$//')
+CLEAN_PAYLOAD=$(printf '%s' "$brick2payload" | sed 's/^"//;s/"$//')
 
 echo "🔍 Clean payload:"
 echo "$CLEAN_PAYLOAD"
