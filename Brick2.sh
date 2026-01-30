@@ -4,8 +4,16 @@ set -e
 echo "================ BRICK 2 START ================"
 
 if [ -z "$BRICK2_PAYLOAD" ]; then
-  echo "❌ BRICK2_PAYLOAD is not set"
-  exit 1
+    if [ -n "$brick2Payload" ]; then
+        echo "⚠️ BRICK2_PAYLOAD not set, using brick2Payload"
+        BRICK2_PAYLOAD="$brick2Payload"
+    else
+        echo "❌ BRICK2_PAYLOAD (and brick2Payload) is not set"
+        # Debug: list env vars to help user troubleshoot
+        echo "Available Env Vars:"
+        env | grep -i payload || true
+        exit 1
+    fi
 fi
 
 echo "✅ BRICK2_PAYLOAD received"
