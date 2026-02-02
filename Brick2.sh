@@ -3,24 +3,20 @@ set -e
 
 echo "================ BRICK 2 START ================"
 
-# NEVER echo BRICK2_PAYLOAD
-export b2payload="$BRICK2_PAYLOAD"
-
-if [ -z "$b2payload" ]; then
-  echo "❌ b2payload is not set"
-  env
+if [ -z "$BRICK2_PAYLOAD" ]; then
+  echo "❌ BRICK2_PAYLOAD is not set"
   exit 1
 fi
 
-FILE_ID=$(echo "$b2payload" | jq -r '.FILE_ID')
-FILE_TYPE=$(echo "$b2payload" | jq -r '.FILE_TYPE')
-UNIVERSE_ID=$(echo "$b2payload" | jq -r '.UNIVERSE_ID')
-DEST_SCHEMA_ID=$(echo "$b2payload" | jq -r '.DEST_SCHEMA_ID')
-SCHEMA_VERSION=$(echo "$b2payload" | jq -r '.SCHEMA_VERSION')
-AUTH_TOKEN=$(echo "$b2payload" | jq -r '.AUTH_TOKEN')
-JOB_NAME=$(echo "$b2payload" | jq -r '.JOB_NAME')
-JOB_DESC=$(echo "$b2payload" | jq -r '.JOB_DESC')
-JAR_VERSION=$(echo "$b2payload" | jq -r '.JAR_VERSION')
+FILE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_ID')
+FILE_TYPE=$(echo "$BRICK2_PAYLOAD" | jq -r '.FILE_TYPE')
+UNIVERSE_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.UNIVERSE_ID')
+DEST_SCHEMA_ID=$(echo "$BRICK2_PAYLOAD" | jq -r '.DEST_SCHEMA_ID')
+SCHEMA_VERSION=$(echo "$BRICK2_PAYLOAD" | jq -r '.SCHEMA_VERSION')
+AUTH_TOKEN=$(echo "$BRICK2_PAYLOAD" | jq -r '.AUTH_TOKEN')
+JOB_NAME=$(echo "$BRICK2_PAYLOAD" | jq -r '.JOB_NAME')
+JOB_DESC=$(echo "$BRICK2_PAYLOAD" | jq -r '.JOB_DESC')
+JAR_VERSION=$(echo "$BRICK2_PAYLOAD" | jq -r '.JAR_VERSION')
 
 
 # -------------------------------------------------
