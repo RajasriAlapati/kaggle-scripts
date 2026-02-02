@@ -9,27 +9,21 @@ echo "$b2payload"
 echo "================ BRICK 2 START ================"
 
 if [ -z "$b2payload" ]; then
-    if [ -n "$brick2Payload" ]; then
-        echo "⚠️ b2payload not set, using brick2Payload"
-        b2payload="$brick2Payload"
-    else
-        echo "❌ b2payload (and brick2Payload) is not set"
-        # Debug: list env vars to help user troubleshoot
-        echo "Available Env Vars:"
-        env | grep -i payload || true
-        exit 1
-    fi
+  echo "❌ b2payload is not set"
+  env
+  exit 1
 fi
-
-echo "✅ b2payload received"
-echo "$b2payload"
 
 FILE_ID=$(echo "$b2payload" | jq -r '.FILE_ID')
 FILE_TYPE=$(echo "$b2payload" | jq -r '.FILE_TYPE')
-AUTH_TOKEN=$(echo "$b2payload" | jq -r '.AUTH_TOKEN')
 UNIVERSE_ID=$(echo "$b2payload" | jq -r '.UNIVERSE_ID')
 DEST_SCHEMA_ID=$(echo "$b2payload" | jq -r '.DEST_SCHEMA_ID')
 SCHEMA_VERSION=$(echo "$b2payload" | jq -r '.SCHEMA_VERSION')
+AUTH_TOKEN=$(echo "$b2payload" | jq -r '.AUTH_TOKEN')
+JOB_NAME=$(echo "$b2payload" | jq -r '.JOB_NAME')
+JOB_DESC=$(echo "$b2payload" | jq -r '.JOB_DESC')
+JAR_VERSION=$(echo "$b2payload" | jq -r '.JAR_VERSION')
+
 
 # -------------------------------------------------
 # 4. VALIDATION
