@@ -1,11 +1,10 @@
 #!/bin/bash
 set -e
-echo "DEBUG BRICK2_PAYLOAD=$BRICK2_PAYLOAD"
-echo "--------------------------------"
-export b2payload="$BRICK2_PAYLOAD"
-echo "$b2payload"
 
 echo "================ BRICK 2 START ================"
+
+# NEVER echo BRICK2_PAYLOAD
+export b2payload="$BRICK2_PAYLOAD"
 
 if [ -z "$b2payload" ]; then
   echo "❌ b2payload is not set"
