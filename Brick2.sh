@@ -1,9 +1,8 @@
 #!/bin/bash
 set -e
-echo "$BRICK2_PAYLOAD"
+echo "DEBUG BRICK2_PAYLOAD=$BRICK2_PAYLOAD"
 echo "--------------------------------"
 export b2payload="$BRICK2_PAYLOAD"
-echo "1111111111111111111111111111111111111111"
 echo "$b2payload"
 
 echo "================ BRICK 2 START ================"
